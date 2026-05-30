@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.nikhiljha.brouter</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>__APP__/Contents/MacOS/brouter</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <!-- Restart only if it crashes; a clean Quit (from the menu bar) stays stopped. -->
+    <key>KeepAlive</key>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+    </dict>
+    <!-- Interactive so the Ask dialog can appear promptly. -->
+    <key>ProcessType</key>
+    <string>Interactive</string>
+    <key>StandardOutPath</key>
+    <string>__LOG__</string>
+    <key>StandardErrorPath</key>
+    <string>__LOG__</string>
+</dict>
+</plist>

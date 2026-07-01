@@ -45,6 +45,14 @@ enum BrowserLauncher {
     /// Launch the URL in the given target. Returns true on success.
     @discardableResult
     static func launch(_ target: BrowserTarget, url: String) -> Bool {
+        // Fast path: hand off to an already-running Chrome via its singleton
+        // socket. This avoids exec'ing a throwaway browser process, so there's
+        // no Dock bounce and nothing for an on-exec AV/EDR scan to stall on.
+        // Falls through to `open` on any miss (browser not running, etc.).
+        if SingletonNotifier.tryNotify(target, url: url) {
+            return true
+        }
+
         let args = openArguments(for: target, url: url)
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: "/usr/bin/open")

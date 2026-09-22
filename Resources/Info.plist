@@ -10,6 +10,8 @@
     <string>com.nikhiljha.brouter</string>
     <key>CFBundleExecutable</key>
     <string>brouter</string>
+    <key>CFBundleIconFile</key>
+    <string>brouter</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleInfoDictionaryVersion</key>

@@ -1,4 +1,4 @@
-.PHONY: build release bundle install uninstall set-default run validate browsers clean
+.PHONY: build release bundle install uninstall set-default run validate browsers route clean
 
 # Debug build of the binary.
 build:
@@ -22,8 +22,7 @@ uninstall:
 # Set the installed brouter.app as the default http/https handler.
 set-default:
 	@APP=$$( [ -d /Applications/brouter.app ] && echo /Applications/brouter.app || echo $$HOME/Applications/brouter.app ); \
-	echo "Using $$APP"; \
-	"$$APP/Contents/MacOS/brouter" set-default "$$APP"
+	"$$APP/Contents/MacOS/brouter" set-default
 
 # Run the agent in the foreground (for debugging; Ctrl-C to stop).
 run: build

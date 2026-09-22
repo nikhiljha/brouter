@@ -63,7 +63,7 @@ final class RouterTests: XCTestCase {
         const browsers = { primary: { app: "Google Chrome", profile: "Default" }, safari: { app: "Safari" } };
         function route(url, ctx) {
           if (ctx.path === "/all") return { ask: true };
-          if (ctx.path === "/options") return { ask: { options: [{ browser: "primary" }, { copy: true }], default: 1 } };
+          if (ctx.path === "/options") return { ask: { options: [{ browser: "primary" }, 5, {}, { copy: true }], default: 1 } };
           if (ctx.path === "/string") return "primary";
           if (ctx.path === "/inline") return { app: "Safari" };
           return { browser: "primary" };

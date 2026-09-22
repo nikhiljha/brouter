@@ -132,18 +132,19 @@ enum AgentLauncher {
         }
     }
 
-    /// Write a temp shell script that cd's to the config dir, runs the agent,
-    /// then drops into an interactive shell so the window stays open.
+    /// Write a temp shell script that deletes itself, cd's to the config dir,
+    /// runs the agent, then drops into an interactive shell so the window stays open.
     private static func writeScript(command: String, preArgs: [String], configURL: URL, shell: String) -> String? {
         let dir = configURL.deletingLastPathComponent().path
         let agentCmd = ([Shell.quote(command)] + preArgs + [Shell.quote(AgentCatalog.prompt(for: configURL))])
             .joined(separator: " ")
+        let path = NSTemporaryDirectory() + "brouter-agent-\(UUID().uuidString).sh"
         let body = """
+        rm -f \(Shell.quote(path))
         cd \(Shell.quote(dir))
         \(agentCmd)
         exec \(Shell.quote(shell)) -li
         """
-        let path = NSTemporaryDirectory() + "brouter-agent-\(UUID().uuidString).sh"
         do {
             try body.write(toFile: path, atomically: true, encoding: .utf8)
             return path
@@ -154,6 +155,10 @@ enum AgentLauncher {
     }
 
     private static func launch(terminal: TerminalApp, shell: String, scriptPath: String) {
+        // Command line typed into iTerm/Terminal, escaped for an AppleScript string.
+        let typed = [Shell.quote(shell), "-li", Shell.quote(scriptPath)].joined(separator: " ")
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
         switch terminal.kind {
         case .kitty:
             openApp(terminal.appPath, args: [shell, "-li", scriptPath])
@@ -166,14 +171,14 @@ enum AgentLauncher {
             tell application "iTerm"
               activate
               set w to (create window with default profile)
-              tell current session of w to write text "\(shell) -li \(scriptPath)"
+              tell current session of w to write text "\(typed)"
             end tell
             """)
         case .terminal:
             runOSA("""
             tell application "Terminal"
               activate
-              do script "\(shell) -li \(scriptPath)"
+              do script "\(typed)"
             end tell
             """)
         }

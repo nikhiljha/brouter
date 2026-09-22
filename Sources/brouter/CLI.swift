@@ -173,7 +173,7 @@ enum CLI {
         do {
             let appURL = URL(fileURLWithPath: NSString(string: path).expandingTildeInPath)
             try URLSchemes.configureBundle(at: appURL, schemes: router.schemes)
-            print("Configured bundle URL schemes. Sign the bundle before installing it.")
+            print("Custom URL schemes: \(router.schemes.isEmpty ? "(none)" : router.schemes.joined(separator: ", "))")
             return 0
         } catch {
             errln(error.localizedDescription)

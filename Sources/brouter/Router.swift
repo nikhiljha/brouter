@@ -184,7 +184,7 @@ final class Router {
             guard let raw = v.toArray() else { return [] }
             var out: [RouteOption] = []
             for (i, _) in raw.enumerated() {
-                if let item = v.atIndex(i) { out.append(resolveOption(item)) }
+                if let item = v.atIndex(i), let option = resolveOption(item) { out.append(option) }
             }
             return out
         }
@@ -211,14 +211,15 @@ final class Router {
     }
 
     /// Resolve a route option that may be a string key or an inline object.
-    private func resolveOption(_ v: JSValue) -> RouteOption {
+    /// Returns nil for values that aren't a valid option.
+    private func resolveOption(_ v: JSValue) -> RouteOption? {
         if v.isObject, isCopy(v) { return .copy }
         if v.isString { return .browser(resolve(key: v.toString() ?? "")) }
         if v.isObject, let t = parseTarget(v, key: nil) { return .browser(t) }
         if v.isObject, let b = v.objectForKeyedSubscript("browser"), b.isString {
             return .browser(resolve(key: b.toString() ?? ""))
         }
-        return .browser(BrowserTarget(app: v.toString() ?? ""))
+        return nil
     }
 
     private func isCopy(_ value: JSValue) -> Bool {

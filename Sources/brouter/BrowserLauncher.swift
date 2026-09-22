@@ -57,12 +57,13 @@ enum BrowserLauncher {
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: "/usr/bin/open")
         proc.arguments = args
+        proc.standardError = FileHandle.nullDevice
         do {
             try proc.run()
             proc.waitUntilExit()
             let ok = proc.terminationStatus == 0
             if !ok {
-                FileHandle.standardError.write(Data("[brouter] open exited \(proc.terminationStatus) for: open \(args.joined(separator: " "))\n".utf8))
+                FileHandle.standardError.write(Data("[brouter] open exited \(proc.terminationStatus) for \(target.displayName)\n".utf8))
             }
             return ok
         } catch {

@@ -20,6 +20,7 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN" "$APP/Contents/MacOS/brouter"
 cp "$ROOT/Resources/Info.plist" "$APP/Contents/Info.plist"
+"$BIN" configure-bundle "$APP"
 if [ -f "$ROOT/Resources/brouter.icns" ]; then
     cp "$ROOT/Resources/brouter.icns" "$APP/Contents/Resources/brouter.icns"
 fi

@@ -38,7 +38,7 @@ struct BrowserTarget: Equatable {
 /// A request to ask the user which target to use.
 struct AskRequest {
     var url: String
-    var options: [BrowserTarget]
+    var options: [RouteOption]
     var message: String?
     var defaultIndex: Int?
     var timeout: Double?
@@ -52,6 +52,26 @@ enum RouteDecision {
     case ask(AskRequest)
     /// Do nothing (drop the URL).
     case none
+    case copy
+}
+
+enum RouteOption: Equatable {
+    case browser(BrowserTarget)
+    case copy
+
+    var displayName: String {
+        switch self {
+        case .browser(let target): return target.displayName
+        case .copy: return "Copy URL"
+        }
+    }
+
+    func matches(key: String) -> Bool {
+        switch self {
+        case .browser(let target): return target.key == key || target.app == key
+        case .copy: return false
+        }
+    }
 }
 
 /// Best-effort info about the app that requested the URL be opened.

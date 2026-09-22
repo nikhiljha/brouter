@@ -15,6 +15,11 @@ let package = Package(
                 .linkedFramework("SwiftUI"),
                 .linkedFramework("JavaScriptCore")
             ]
+        ),
+        .testTarget(
+            name: "brouterTests",
+            dependencies: ["brouter"],
+            path: "Tests/brouterTests"
         )
     ]
 )

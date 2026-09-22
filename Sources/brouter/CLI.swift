@@ -39,6 +39,14 @@ enum CLI {
             return openURL(url)
         case "--set-default", "set-default":
             return setDefault(pathArg: rest.first)
+        case "register-schemes":
+            let router = Router(configURL: Config.resolveURL())
+            guard router.load() else { errln(router.lastError ?? "config error"); return 1 }
+            guard !router.schemes.isEmpty else { print("No custom schemes configured."); return 0 }
+            return setDefault(pathArg: rest.first, schemes: router.schemes)
+        case "configure-bundle":
+            guard let path = rest.first else { errln("usage: brouter configure-bundle <app>"); return 2 }
+            return configureBundle(path: path)
         default:
             // Anything that looks like a URL: treat as `open`.
             if first.contains("://") { return openURL(first) }
@@ -56,6 +64,7 @@ enum CLI {
             let browsers = router.allBrowsers()
             print("browsers: \(browsers.count)")
             for b in browsers { print("  - \(describe(b))") }
+            print("custom schemes: \(router.schemes.isEmpty ? "(none)" : router.schemes.joined(separator: ", "))")
             return 0
         } else {
             errln("config INVALID: \(router.lastError ?? "unknown error")")
@@ -141,6 +150,10 @@ enum CLI {
         case .open(let target):
             print("opening in \(target.displayName)")
             return BrowserLauncher.launch(target, url: url) ? 0 : 1
+        case .copy:
+            let copied = RouteActions.copy(url)
+            if copied { print("copied URL") }
+            return copied ? 0 : 1
         case .ask(let req):
             print("route() requested an Ask dialog (run the agent to see it). Options:")
             for (i, o) in req.options.enumerated() { print("  \(i + 1). \(describe(o))") }
@@ -151,7 +164,24 @@ enum CLI {
         }
     }
 
-    private static func setDefault(pathArg: String?) -> Int32 {
+    private static func configureBundle(path: String) -> Int32 {
+        let router = Router(configURL: Config.resolveURL())
+        if FileManager.default.fileExists(atPath: router.configURL.path), !router.load() {
+            errln(router.lastError ?? "config error")
+            return 1
+        }
+        do {
+            let appURL = URL(fileURLWithPath: NSString(string: path).expandingTildeInPath)
+            try URLSchemes.configureBundle(at: appURL, schemes: router.schemes)
+            print("Configured bundle URL schemes. Sign the bundle before installing it.")
+            return 0
+        } catch {
+            errln(error.localizedDescription)
+            return 1
+        }
+    }
+
+    private static func setDefault(pathArg: String?, schemes: [String] = ["http", "https"]) -> Int32 {
         let appURL: URL
         if let pathArg {
             appURL = URL(fileURLWithPath: NSString(string: pathArg).expandingTildeInPath)
@@ -169,7 +199,18 @@ enum CLI {
             appURL = URL(fileURLWithPath: installed)
         }
 
-        print("Setting \(appURL.lastPathComponent) as default for http/https…")
+        guard let bundle = Bundle(url: appURL), bundle.bundleIdentifier == "com.nikhiljha.brouter" else {
+            errln("Expected an installed brouter.app bundle.")
+            return 1
+        }
+        let types = bundle.object(forInfoDictionaryKey: "CFBundleURLTypes") as? [[String: Any]] ?? []
+        let declared = types.flatMap { $0["CFBundleURLSchemes"] as? [String] ?? [] }.map { $0.lowercased() }
+        let missing = schemes.filter { !declared.contains($0) }
+        guard missing.isEmpty else {
+            errln("Bundle does not declare: \(missing.joined(separator: ", ")). Run make install after editing schemes, then register-schemes again.")
+            return 1
+        }
+        print("Setting \(appURL.lastPathComponent) as default for \(schemes.joined(separator: ", "))…")
         // Give the request a real foreground app context so macOS can present
         // its "allow change of default browser?" consent prompt.
         let app = NSApplication.shared
@@ -177,9 +218,9 @@ enum CLI {
         app.activate(ignoringOtherApps: true)
 
         let ws = NSWorkspace.shared
-        var remaining = 2
+        var remaining = schemes.count
         var failure: NSError?
-        for scheme in ["http", "https"] {
+        for scheme in schemes {
             ws.setDefaultApplication(at: appURL, toOpenURLsWithScheme: scheme) { error in
                 if let error { failure = error as NSError }
                 remaining -= 1
@@ -189,16 +230,31 @@ enum CLI {
         while remaining > 0 && Date() < deadline {
             RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.1))
         }
-        if let failure {
-            errln("failed: \(failure.localizedDescription) [\(failure.domain) \(failure.code)]")
-            errln("Tip: set it manually — System Settings ▸ Desktop & Dock ▸ Default web browser ▸ brouter")
+        guard remaining == 0 else {
+            errln("Timed out waiting for macOS to confirm the default handlers.")
             return 1
         }
-        print("Done. brouter is now your default browser.")
+        let unregistered = schemes.filter { scheme in
+            guard let url = URL(string: "\(scheme):"), let handler = ws.urlForApplication(toOpen: url) else { return true }
+            return handler.resolvingSymlinksInPath() != appURL.resolvingSymlinksInPath()
+        }
+        guard unregistered.isEmpty else {
+            if let failure { errln("failed: \(failure.localizedDescription) [\(failure.domain) \(failure.code)]") }
+            errln("Default handler was not changed for: \(unregistered.joined(separator: ", ")). Approve the macOS prompt and retry.")
+            return 1
+        }
+        print("Done. brouter handles \(schemes.joined(separator: ", ")).")
         return 0
     }
 
     // MARK: - Output helpers
+
+    private static func describe(_ option: RouteOption) -> String {
+        switch option {
+        case .browser(let target): return describe(target)
+        case .copy: return option.displayName
+        }
+    }
 
     private static func describe(_ t: BrowserTarget) -> String {
         var s = t.displayName
@@ -223,6 +279,9 @@ enum CLI {
                 let star = (req.defaultIndex ?? 0) == i ? "*" : " "
                 print("   \(star)\(i + 1). \(describe(o))")
             }
+        case .copy:
+            print("route(\(url))")
+            print("  -> copy original URL to clipboard")
         case .none:
             print("route(\(url))")
             print("  -> no route (agent falls back to first/Safari)")
@@ -248,6 +307,8 @@ enum CLI {
           brouter edit                  open the config in your editor
           brouter browsers              list browsers defined in the config
           brouter set-default [app]     set brouter as the default http/https handler
+          brouter register-schemes [app] set brouter as handler for configured schemes
+          brouter configure-bundle <app> declare configured schemes before signing
           brouter config-path          print the resolved config file path
           brouter version
           brouter help

@@ -12,6 +12,7 @@ final class Router {
     private var context: JSContext?
     private var lastModified: Date?
     private(set) var lastError: String?
+    private(set) var schemes: [String] = []
 
     init(configURL: URL) {
         self.configURL = configURL
@@ -33,6 +34,7 @@ final class Router {
     @discardableResult
     func load() -> Bool {
         lastError = nil
+        schemes = []
         guard let source = try? String(contentsOf: configURL, encoding: .utf8) else {
             lastError = "Could not read config at \(configURL.path)"
             context = nil
@@ -48,6 +50,18 @@ final class Router {
         installConsole(in: ctx)
 
         ctx.evaluateScript(source, withSourceURL: configURL)
+        if lastError == nil {
+            let value = ctx.evaluateScript("typeof schemes === 'undefined' ? [] : schemes")
+            if let value, value.isArray, let raw = value.toArray() as? [String] {
+                do {
+                    schemes = try URLSchemes.normalize(raw)
+                } catch {
+                    lastError = error.localizedDescription
+                }
+            } else {
+                lastError = "schemes must be an array of URL scheme names"
+            }
+        }
         if let err = lastError {
             FileHandle.standardError.write(Data("[brouter] config failed to load: \(err)\n".utf8))
             context = nil
@@ -119,7 +133,7 @@ final class Router {
     private func contextObject(for url: String, sourceApp: SourceApp?) -> [String: Any] {
         var d: [String: Any] = ["url": url]
         if let comps = URLComponents(string: url) {
-            d["scheme"] = comps.scheme ?? NSNull()
+            d["scheme"] = comps.scheme?.lowercased() ?? NSNull()
             d["host"] = comps.host ?? ""
             d["hostname"] = comps.host ?? ""
             d["port"] = comps.port ?? NSNull()
@@ -145,6 +159,7 @@ final class Router {
         }
         if value.isBoolean || value.isNumber { return .none }
         if value.isObject {
+            if isCopy(value) { return .copy }
             let askVal = value.objectForKeyedSubscript("ask")
             if let askVal, !askVal.isUndefined {
                 return .ask(buildAsk(askVal, url: url))
@@ -161,14 +176,14 @@ final class Router {
     }
 
     private func buildAsk(_ askVal: JSValue, url: String) -> AskRequest {
-        var options: [BrowserTarget] = []
+        var options: [RouteOption] = []
         var message: String?
         var defaultIndex: Int?
         var timeout: Double?
 
-        func optionsFromArray(_ v: JSValue) -> [BrowserTarget] {
+        func optionsFromArray(_ v: JSValue) -> [RouteOption] {
             guard let raw = v.toArray() else { return [] }
-            var out: [BrowserTarget] = []
+            var out: [RouteOption] = []
             for (i, _) in raw.enumerated() {
                 if let item = v.atIndex(i) { out.append(resolveOption(item)) }
             }
@@ -187,21 +202,30 @@ final class Router {
                 if d.isNumber {
                     defaultIndex = Int(d.toInt32())
                 } else if d.isString {
-                    let key = d.toString()
-                    defaultIndex = options.firstIndex { $0.key == key || $0.app == key }
+                    let key = d.toString() ?? ""
+                    defaultIndex = options.firstIndex { $0.matches(key: key) }
                 }
             }
         }
         // `ask: true` / `ask: "all"` / empty -> all defined browsers.
-        if options.isEmpty { options = allBrowsers() }
+        if options.isEmpty { options = allBrowsers().map(RouteOption.browser) }
         return AskRequest(url: url, options: options, message: message, defaultIndex: defaultIndex, timeout: timeout)
     }
 
     /// Resolve a route option that may be a string key or an inline object.
-    private func resolveOption(_ v: JSValue) -> BrowserTarget {
-        if v.isString { return resolve(key: v.toString() ?? "") }
-        if v.isObject, let t = parseTarget(v, key: nil) { return t }
-        return BrowserTarget(app: v.toString() ?? "")
+    private func resolveOption(_ v: JSValue) -> RouteOption {
+        if v.isObject, isCopy(v) { return .copy }
+        if v.isString { return .browser(resolve(key: v.toString() ?? "")) }
+        if v.isObject, let t = parseTarget(v, key: nil) { return .browser(t) }
+        if v.isObject, let b = v.objectForKeyedSubscript("browser"), b.isString {
+            return .browser(resolve(key: b.toString() ?? ""))
+        }
+        return .browser(BrowserTarget(app: v.toString() ?? ""))
+    }
+
+    private func isCopy(_ value: JSValue) -> Bool {
+        guard let copy = value.objectForKeyedSubscript("copy") else { return false }
+        return copy.isBoolean && copy.toBool()
     }
 
     /// Resolve a string returned by route(): a key into `browsers`, or an app name.

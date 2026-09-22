@@ -45,21 +45,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let decision = router.route(url: urlString, sourceApp: source)
         switch decision {
         case .open(let target):
-            log("route \(urlString) -> \(target.displayName)")
+            log("route -> \(target.displayName)")
             BrowserLauncher.launch(target, url: urlString)
+        case .copy:
+            log("route -> copy")
+            RouteActions.copy(urlString)
         case .ask(let req):
-            log("route \(urlString) -> ask (\(req.options.count) options)")
+            log("route -> ask (\(req.options.count) options)")
             let controller = AskDialogController()
-            controller.present(req) { target in
-                if let target {
-                    self.log("  ask \(urlString) -> \(target.displayName)")
-                    BrowserLauncher.launch(target, url: urlString)
+            controller.present(req) { option in
+                if let option {
+                    self.log("  ask -> \(option.displayName)")
+                    RouteActions.perform(option, url: urlString)
                 } else {
-                    self.log("  ask \(urlString) -> cancelled")
+                    self.log("  ask -> cancelled")
                 }
             }
         case .none:
-            FileHandle.standardError.write(Data("[brouter] no route for \(urlString); using fallback\n".utf8))
+            FileHandle.standardError.write(Data("[brouter] no route; using fallback\n".utf8))
             fallbackOpen(urlString)
         }
     }

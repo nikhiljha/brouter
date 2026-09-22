@@ -25,14 +25,20 @@ final class AskDialogController: NSObject, NSWindowDelegate {
 
     // MARK: - Browser convenience
 
-    func present(_ request: AskRequest, completion: @escaping (BrowserTarget?) -> Void) {
-        let opts = request.options.map { t -> PickerOption in
-            var sub: [String] = []
-            if t.displayName != t.app { sub.append(t.app) }
-            if let p = t.profile, !p.isEmpty { sub.append(p) }
-            return PickerOption(title: t.displayName,
-                                subtitle: sub.isEmpty ? nil : sub.joined(separator: " · "),
-                                icon: BrowserLauncher.icon(for: t))
+    func present(_ request: AskRequest, completion: @escaping (RouteOption?) -> Void) {
+        let opts = request.options.map { option -> PickerOption in
+            switch option {
+            case .copy:
+                return PickerOption(title: option.displayName, subtitle: "Copy the original link to the clipboard",
+                                    icon: NSImage(systemSymbolName: "doc.on.doc", accessibilityDescription: "Copy URL") ?? NSImage())
+            case .browser(let t):
+                var sub: [String] = []
+                if t.displayName != t.app { sub.append(t.app) }
+                if let p = t.profile, !p.isEmpty { sub.append(p) }
+                return PickerOption(title: t.displayName,
+                                    subtitle: sub.isEmpty ? nil : sub.joined(separator: " · "),
+                                    icon: BrowserLauncher.icon(for: t))
+            }
         }
         let host = URLComponents(string: request.url)?.host ?? request.url
         presentPicker(caption: request.message ?? "Open link in…",

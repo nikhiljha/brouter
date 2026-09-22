@@ -102,6 +102,7 @@ Return any of:
 | `"work"` | a key from `browsers` |
 | `{ app: "Safari" }` | an inline target |
 | `{ browser: "work" }` | reference a key explicitly |
+| `{ copy: true }` | copy the original URL to the clipboard without opening it |
 | `{ ask: true }` | Ask dialog with **all** browsers |
 | `{ ask: ["work", "personal"] }` | Ask dialog with these options |
 | `{ ask: { options, message, default, timeout } }` | Ask dialog with full control |
@@ -128,6 +129,71 @@ function route(url, ctx) {
 ```
 
 `console.log(...)` from your config goes to the brouter log (see below).
+
+### Custom URL schemes and copying
+
+Define an optional `schemes` array to intercept non-web URLs. Scheme names are
+case-insensitive and must omit `:` and `//`. They are normalized to lowercase
+in both registration and `ctx.scheme`.
+
+All scheme names and destinations are user-configured; brouter has no
+app-specific interception rules. For a copy-or-open picker, keep the schemes
+and targets together in an editable list in your `config.js`:
+
+```js
+const schemeHandlers = [
+  {
+    schemes: ["myapp", "myapp-preview"],
+    target: { app: "com.example.myapp", label: "Open in My App" },
+  },
+];
+const schemes = schemeHandlers.flatMap(handler => handler.schemes);
+
+function route(url, ctx) {
+  const handler = schemeHandlers.find(handler => handler.schemes.includes(ctx.scheme));
+  if (handler) {
+    return {
+      ask: {
+        message: "Handle app link…",
+        options: [{ copy: true }, handler.target],
+        default: 0,
+      },
+    };
+  }
+  return "personal";
+}
+```
+
+Replace the example scheme names and app bundle ID with your own. Add another
+entry for each app; aliases can share an entry. A `target` can also be a browser
+key or `{ browser: "key" }`. `schemeHandlers` is just a JavaScript helper in this
+example: brouter reads `schemes` and calls `route()` as usual.
+
+`{ copy: true }` works directly as a route result or alongside browser keys,
+`{ browser: "key" }` references, and inline app targets in `ask.options`.
+`default` can be a zero-based option index (including Copy URL) or a browser key.
+Copying preserves the original URL, including its escaping, query, and fragment.
+To send a custom URL directly to a browser, return its normal browser key instead.
+The destination must support the scheme; brouter does not convert it to HTTPS.
+
+After adding or changing `schemes`, rebuild/install and explicitly register them:
+
+```sh
+make install
+/Applications/brouter.app/Contents/MacOS/brouter register-schemes
+```
+
+Use `~/Applications/brouter.app/Contents/MacOS/brouter` if installed there.
+The bundle build incorporates the configured schemes before code signing.
+`register-schemes` changes only the listed handlers and verifies the result;
+macOS may ask for consent. Routing-rule edits still reload without a rebuild.
+Removing a scheme from config does not restore its previous macOS handler:
+restore that handler before removing it. Explicit app targets use `open -a`/`-b`
+rather than opening via the system default, avoiding a redirect back to brouter.
+
+Normal agent routing and launch-failure logs omit URLs. Config-authored logs and
+`brouter route` dry-run output can still include them, so use synthetic URLs for
+testing authentication callbacks. Clipboard managers may retain copied URLs.
 
 ## Menu bar
 
@@ -182,9 +248,13 @@ brouter init [--force]   # write a starter config (with detected browsers)
 brouter edit             # open the config in your editor
 brouter browsers         # list browsers defined in the config
 brouter set-default      # set brouter as the default http/https handler
+brouter register-schemes
 brouter config-path      # print the resolved config path
 brouter help
 ```
+
+Run the automated routing, clipboard, and bundle-declaration tests with `swift test`.
+Tests use synthetic URLs and a private pasteboard, without changing macOS handlers.
 
 During development:
 

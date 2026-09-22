@@ -41,7 +41,6 @@ struct AskRequest {
     var options: [RouteOption]
     var message: String?
     var defaultIndex: Int?
-    var timeout: Double?
 }
 
 /// The result of evaluating the JS `route()` function for a URL.
@@ -50,8 +49,9 @@ enum RouteDecision {
     case open(BrowserTarget)
     /// Ask the user to pick among options.
     case ask(AskRequest)
-    /// Do nothing (drop the URL).
+    /// No route; the agent falls back to the first browser or Safari.
     case none
+    /// Copy the URL to the clipboard.
     case copy
 }
 

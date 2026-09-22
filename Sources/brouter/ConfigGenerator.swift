@@ -7,15 +7,15 @@ enum ConfigGenerator {
         let firstKey = allTargets.first?.key ?? "safari"
 
         var s = ""
-        s += "// brouter config — plain JavaScript, evaluated by JavaScriptCore.\n"
-        s += "// Auto-generated \(timestamp()) from the browsers detected on this Mac.\n"
-        s += "// Edit freely; brouter reloads on save. See `brouter detect` to re-list browsers.\n"
+        s += "// brouter config. Plain JavaScript, evaluated by JavaScriptCore.\n"
+        s += "// Generated \(timestamp()) from the browsers detected on this Mac.\n"
+        s += "// brouter reloads this file when it changes. `brouter detect` lists browsers.\n"
         s += "//\n"
         s += "// Test without clicking links:\n"
         s += "//   brouter route https://github.com/foo/bar\n"
         s += "//   brouter validate\n\n"
 
-        s += "// --- Browsers / profiles detected on this machine -------------------------\n"
+        s += "// --- Browsers --------------------------------------------------------------\n"
         s += "const browsers = {\n"
         for b in browsers {
             s += "  // \(b.shortName)\n"
@@ -30,19 +30,19 @@ enum ConfigGenerator {
         s += "};\n\n"
 
         s += "// --- Routing --------------------------------------------------------------\n"
-        s += "// Return a key from `browsers`, an inline { app, profile, args }, or an Ask\n"
-        s += "// request like { ask: true } / { ask: [\"key1\", \"key2\"] }.\n"
+        s += "// Return a key from `browsers`, an app target like { app: \"Safari\" },\n"
+        s += "// { copy: true }, or a picker like { ask: true } / { ask: [\"key1\", \"key2\"] }.\n"
+        s += "// See config.example.js in the brouter repo for more.\n"
         s += "function route(url, ctx) {\n"
         s += "  const is = (d) => ctx.host === d || ctx.host.endsWith(\".\" + d);\n\n"
-        s += "  // Examples — uncomment and adapt:\n"
+        s += "  // Examples:\n"
         if let work = suggestKey(allTargets, contains: ["work", "profile_1"]) {
             s += "  // if (is(\"github.com\") || is(\"slack.com\")) return \(js(work));\n"
         } else {
             s += "  // if (is(\"github.com\")) return \(js(firstKey));\n"
         }
         s += "  // if (is(\"figma.com\")) return { ask: true };\n"
-        s += "  // if (ctx.sourceApp && ctx.sourceApp.bundleId === \"com.tinyspeck.slackmacgap\") return \(js(firstKey));\n\n"
-        s += "  // Default for everything else:\n"
+        s += "  // if (ctx.sourceApp?.bundleId === \"com.tinyspeck.slackmacgap\") return \(js(firstKey));\n\n"
         s += "  return \(js(firstKey));\n"
         s += "}\n"
         s += "\n// vim: set ft=javascript ts=2 sw=2 et :\n"

@@ -21,7 +21,7 @@
     <key>LSMinimumSystemVersion</key>
     <string>13.0</string>
 
-    <!-- Background agent: no Dock icon, no menu bar. -->
+    <!-- Background agent: menu-bar icon only, no Dock icon. -->
     <key>LSUIElement</key>
     <true/>
 

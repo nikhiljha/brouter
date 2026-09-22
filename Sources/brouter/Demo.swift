@@ -45,8 +45,7 @@ private final class DemoDelegate: NSObject, NSApplicationDelegate {
             url: "https://github.com/nikhiljha/brouter/pull/42",
             options: Demo.sampleTargets().map(RouteOption.browser),
             message: "Open link in…",
-            defaultIndex: 0,
-            timeout: nil
+            defaultIndex: 0
         )
         controller.present(req) { target in
             if let target {

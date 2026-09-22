@@ -179,7 +179,6 @@ final class Router {
         var options: [RouteOption] = []
         var message: String?
         var defaultIndex: Int?
-        var timeout: Double?
 
         func optionsFromArray(_ v: JSValue) -> [RouteOption] {
             guard let raw = v.toArray() else { return [] }
@@ -197,7 +196,6 @@ final class Router {
                 options = optionsFromArray(optsVal)
             }
             if let m = askVal.objectForKeyedSubscript("message"), m.isString { message = m.toString() }
-            if let t = askVal.objectForKeyedSubscript("timeout"), t.isNumber { timeout = t.toDouble() }
             if let d = askVal.objectForKeyedSubscript("default"), !d.isUndefined, !d.isNull {
                 if d.isNumber {
                     defaultIndex = Int(d.toInt32())
@@ -209,7 +207,7 @@ final class Router {
         }
         // `ask: true` / `ask: "all"` / empty -> all defined browsers.
         if options.isEmpty { options = allBrowsers().map(RouteOption.browser) }
-        return AskRequest(url: url, options: options, message: message, defaultIndex: defaultIndex, timeout: timeout)
+        return AskRequest(url: url, options: options, message: message, defaultIndex: defaultIndex)
     }
 
     /// Resolve a route option that may be a string key or an inline object.

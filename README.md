@@ -8,12 +8,26 @@ can also show a picker, copy a link, or send a custom-scheme link to an app.
 
 It runs as a background agent with a menu-bar icon.
 
-## Requirements
-
-- macOS 13+
-- Swift toolchain (Xcode or Command Line Tools)
-
 ## Install
+
+Requires macOS 13+.
+
+### Download
+
+1. Download the DMG from [Releases](https://github.com/nikhiljha/brouter/releases)
+   (Apple Silicon only) and drag brouter to Applications.
+2. Open brouter. It isn't signed with a Developer ID, so macOS blocks it the
+   first time. Go to **System Settings → Privacy & Security** and click
+   **Open Anyway**.
+3. Set brouter as the default browser in **System Settings → Desktop & Dock →
+   Default web browser**.
+
+To start brouter at login, add it under **System Settings → General → Login
+Items**. Custom URL schemes require building from source.
+
+### From source
+
+Requires a Swift toolchain (Xcode or Command Line Tools).
 
 ```sh
 make install       # build, install to /Applications (or ~/Applications), start the agent
@@ -170,7 +184,10 @@ swift test
 make build
 make run                          # run the agent in the foreground
 make route URL=https://github.com/x/y
+make dmg VERSION=2026.09.22-1     # release DMG in dist/ (needs uv and Chrome)
 ```
+
+`scripts/icon.sh` rebuilds the app icon from `.github/assets/icon.html`.
 
 ## Troubleshooting
 

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Assemble build/brouter.app from the SwiftPM build product.
+# Set VERSION (e.g. 2026.09.22-1) to stamp the app's version.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -21,6 +22,9 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN" "$APP/Contents/MacOS/brouter"
 cp "$ROOT/Resources/Info.plist" "$APP/Contents/Info.plist"
 "$BIN" configure-bundle "$APP"
+if [ -n "${VERSION:-}" ]; then
+    plutil -replace CFBundleShortVersionString -string "$VERSION" "$APP/Contents/Info.plist"
+fi
 if [ -f "$ROOT/Resources/brouter.icns" ]; then
     cp "$ROOT/Resources/brouter.icns" "$APP/Contents/Resources/brouter.icns"
 fi

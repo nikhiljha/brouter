@@ -1,7 +1,7 @@
 import AppKit
 
 enum CLI {
-    static let version = "0.1.0"
+    static let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
 
     /// Handle CLI subcommands. Returns an exit code if handled,
     /// or nil to continue launching as the agent.

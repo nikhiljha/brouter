@@ -1,4 +1,4 @@
-.PHONY: build release bundle install uninstall set-default run validate browsers route clean
+.PHONY: build release bundle dmg install uninstall set-default run validate browsers route clean
 
 # Debug build of the binary.
 build:
@@ -11,6 +11,10 @@ release:
 # Assemble build/brouter.app (release).
 bundle:
 	./scripts/bundle.sh release
+
+# Build a release DMG:  make dmg VERSION=2026.09.22-1
+dmg:
+	./scripts/dmg.sh "$(VERSION)"
 
 # Build, install to /Applications (or ~/Applications), and start the agent.
 install:
@@ -41,4 +45,4 @@ route: build
 	.build/debug/brouter route "$(URL)"
 
 clean:
-	rm -rf .build build
+	rm -rf .build build dist

@@ -1,5 +1,7 @@
 # brouter
 
+![brouter picker](.github/assets/social-card.png)
+
 brouter is a macOS browser router. Set it as the default browser, and a
 JavaScript function decides which browser or Chrome profile opens each link. It
 can also show a picker, copy a link, or send a custom-scheme link to an app.

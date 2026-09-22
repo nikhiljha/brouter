@@ -1,0 +1,57 @@
+<!doctype html>
+<!-- Social card source (1280x640). Export from this directory:
+  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new --hide-scrollbars \
+    --window-size=1280,640 --force-device-scale-factor=1 --screenshot=social-card.png social-card.html
+-->
+
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; }
+  body {
+    width: 1280px;
+    height: 640px;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    background:
+      radial-gradient(900px 600px at 0% 0%, #cfe0ff 0%, transparent 60%),
+      radial-gradient(800px 600px at 100% 100%, #ffd9c7 0%, transparent 60%),
+      radial-gradient(700px 500px at 100% 0%, #e7dcff 0%, transparent 55%),
+      #eef0f6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 88px;
+  }
+  .mark {
+    display: flex;
+    align-items: center;
+    gap: 22px;
+    color: #1f1f1f;
+  }
+  .mark img { width: 64px; height: auto; transform: translateY(4px); }
+  .mark span {
+    font-size: 88px;
+    font-weight: 700;
+    letter-spacing: -0.035em;
+  }
+  .picker {
+    width: 560px;
+    height: auto;
+    filter:
+      drop-shadow(0 1px 1px rgba(0, 0, 0, 0.08))
+      drop-shadow(0 8px 16px rgba(0, 0, 0, 0.10))
+      drop-shadow(0 24px 48px rgba(0, 0, 0, 0.14));
+  }
+</style>
+</head>
+<body>
+  <div class="mark">
+    <img src="branch.png" alt="">
+    <span>brouter</span>
+  </div>
+  <img class="picker" src="picker.png" alt="brouter picker">
+</body>
+</html>

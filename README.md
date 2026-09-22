@@ -1,317 +1,182 @@
 # brouter
 
-A tiny, JavaScript-configurable **browser router** for macOS. Set it as your
-default browser and it decides — per URL — which **browser** or **Chrome
-profile** opens the link, using rules you write in plain JavaScript. When you
-can't decide up front, `route()` can pop a native **Ask** dialog to let you pick.
+brouter is a macOS browser router. Set it as the default browser, and a
+JavaScript function decides which browser or Chrome profile opens each link. It
+can also show a picker, copy a link, or send a custom-scheme link to an app.
 
-It runs as a background `launchd` agent (no Dock icon) so the config stays warm
-and the Ask dialog appears instantly. A small **menu-bar icon** lets you open the
-config, copy its path, see detected browsers, reload, or quit the daemon.
-
-```
-link clicked ──▶ brouter (default browser) ──▶ route(url, ctx) in config.js
-                                                   │
-                                  ┌────────────────┼─────────────────┐
-                                  ▼                ▼                 ▼
-                          Chrome "Work"      Safari            Ask dialog
-                          (Profile 1)                          (pick one)
-```
+It runs as a background agent with a menu-bar icon.
 
 ## Requirements
 
 - macOS 13+
-- Xcode / Swift toolchain (uses SwiftPM, AppKit, SwiftUI, JavaScriptCore — all built-in)
+- Swift toolchain (Xcode or Command Line Tools)
 
 ## Install
 
 ```sh
-make install          # builds brouter.app, installs it, starts the launchd agent
-make set-default      # make brouter your default http/https handler (macOS will confirm)
+make install       # build, install to /Applications (or ~/Applications), start the agent
+make set-default   # make brouter the default http/https handler
 ```
 
-`make install` will:
-1. build a release `brouter.app`,
-2. copy it to `/Applications` (or `~/Applications` if that isn't writable),
-3. register it with LaunchServices,
-4. install + load a LaunchAgent at `~/Library/LaunchAgents/com.nikhiljha.brouter.plist`.
+Approve the macOS prompt. If `set-default` reports an error, check **System
+Settings → Desktop & Dock → Default web browser**, or set brouter there.
 
-macOS will show a consent prompt — approve it. On recent macOS, `set-default`
-may print a spurious `The file couldn't be opened` error even though the change
-*succeeds* after you approve the prompt; verify in **System Settings → Desktop &
-Dock → Default web browser** (you can also just set it there directly).
-
-To uninstall:
-
-```sh
-make uninstall        # stops the agent, removes the app + LaunchAgent
-```
+Uninstall with `make uninstall`.
 
 ## Configure
 
-Your config lives at:
+The config is `~/Library/Application Support/brouter/config.js`. brouter
+creates it on first run with the browsers it detects. It reloads the file when
+it changes.
 
-```
-~/Library/Application Support/brouter/config.js
-```
+brouter uses `$BROUTER_CONFIG` if set, then the path above, then
+`~/.config/brouter/config.js`. See `config.example.js` for a full example.
 
-On first run brouter **auto-generates** this file, pre-populated with the
-browsers and profiles detected on your Mac (run `brouter detect` to see them, or
-`brouter init --force` to regenerate). Open it from the menu-bar icon → **Open
-Config in Editor**, or `brouter edit`.
-
-(Resolution order: `$BROUTER_CONFIG`, then the path above, then
-`~/.config/brouter/config.js`. See `config.example.js` for a fully documented
-template.)
-
-Edit and save — brouter reloads automatically (it watches the file's mtime).
-
-### `browsers`
+### Browsers
 
 ```js
 const browsers = {
-  personal: { app: "Google Chrome", profile: "Default",   label: "Chrome — Personal" },
-  work:     { app: "Google Chrome", profile: "Profile 1", label: "Chrome — Work" },
-  safari:   { app: "Safari",                              label: "Safari" },
+  personal: { app: "Google Chrome", profile: "Default",   label: "Personal" },
+  work:     { app: "Google Chrome", profile: "Profile 1", label: "Work" },
+  safari:   { app: "Safari" },
 };
 ```
 
-| field     | meaning |
-|-----------|---------|
-| `app`     | app name (`"Google Chrome"`), bundle id (`"com.google.Chrome"`), or full path |
-| `profile` | *(optional)* Chromium `--profile-directory`, e.g. `"Default"`, `"Profile 1"` |
-| `args`    | *(optional)* extra command-line args (e.g. Firefox `["-P", "work"]`) |
-| `label`   | *(optional)* name shown in the Ask dialog |
+| Field | Description |
+|---|---|
+| `app` | App name, bundle ID, or path |
+| `profile` | Chromium profile directory, such as `Default` or `Profile 1` |
+| `args` | Extra command-line arguments |
+| `label` | Name shown in the picker |
 
-> Find Chrome profile directory names at `chrome://version` → **Profile Path**
-> (use the last path component, e.g. `Profile 1`).
+Chrome shows the profile directory at `chrome://version` under **Profile Path**.
 
-### `route(url, ctx)`
+### Routing
 
-`ctx` contains:
+`route(url, ctx)` returns where a link goes. `ctx` has:
 
 ```
 url, scheme, host, hostname, port, path, pathname, hash,
-search, query {name: value}, sourceApp {name, bundleId, path}
+search, query, sourceApp { name, bundleId, path }
 ```
 
-Return any of:
+| Return value | Result |
+|---|---|
+| `"work"` | Open in a browser from `browsers` |
+| `{ browser: "work" }` | Same as above |
+| `{ app: "Safari" }` | Open in an app not listed in `browsers` |
+| `{ copy: true }` | Copy the URL to the clipboard |
+| `{ ask: true }` | Pick from all browsers |
+| `{ ask: ["work", "personal"] }` | Pick from these options |
+| `{ ask: { options, message, default } }` | Pick with a custom message and default |
+| Nothing | Open in the first browser, or Safari |
 
-| return value | behavior |
-|--------------|----------|
-| `"work"` | a key from `browsers` |
-| `{ app: "Safari" }` | an inline target |
-| `{ browser: "work" }` | reference a key explicitly |
-| `{ copy: true }` | copy the original URL to the clipboard without opening it |
-| `{ ask: true }` | Ask dialog with **all** browsers |
-| `{ ask: ["work", "personal"] }` | Ask dialog with these options |
-| `{ ask: { options, message, default, timeout } }` | Ask dialog with full control |
-| *(nothing)* | falls back to the first browser / Safari (so links are never lost) |
-
-Example:
+`ask` options can be browser keys, `{ browser: "key" }`, app targets, or
+`{ copy: true }`. `default` is an option index or browser key.
 
 ```js
 function route(url, ctx) {
   const is = (d) => ctx.host === d || ctx.host.endsWith("." + d);
 
-  if (is("github.com") || is("slack.com")) return "work";
-
-  // Open links that came from Slack in the work profile.
-  if (ctx.sourceApp && ctx.sourceApp.bundleId === "com.tinyspeck.slackmacgap") return "work";
-
-  // Let me choose for meeting links, defaulting to work.
-  if (is("zoom.us") || is("meet.google.com")) {
-    return { ask: { options: ["work", "personal"], message: "Join meeting in…", default: "work" } };
-  }
-
+  if (is("github.com")) return "work";
+  if (ctx.sourceApp?.bundleId === "com.tinyspeck.slackmacgap") return "work";
+  if (is("zoom.us")) return { ask: { options: ["work", "personal"], default: "work" } };
   return "personal";
 }
 ```
 
-`console.log(...)` from your config goes to the brouter log (see below).
+`console.log()` writes to the brouter log.
 
-### Custom URL schemes and copying
+### Custom URL schemes
 
-Define an optional `schemes` array to intercept non-web URLs. Scheme names are
-case-insensitive and must omit `:` and `//`. They are normalized to lowercase
-in both registration and `ctx.scheme`.
-
-All scheme names and destinations are user-configured; brouter has no
-app-specific interception rules. For a copy-or-open picker, keep the schemes
-and targets together in an editable list in your `config.js`:
+To handle links such as `myapp://...`, list their schemes in `schemes`, then
+route them in `route()`. This example asks whether to copy the link or open it
+in the app:
 
 ```js
 const schemeHandlers = [
   {
-    schemes: ["myapp", "myapp-preview"],
+    schemes: ["myapp"],
     target: { app: "com.example.myapp", label: "Open in My App" },
   },
 ];
-const schemes = schemeHandlers.flatMap(handler => handler.schemes);
+const schemes = schemeHandlers.flatMap(h => h.schemes);
 
 function route(url, ctx) {
-  const handler = schemeHandlers.find(handler => handler.schemes.includes(ctx.scheme));
+  const handler = schemeHandlers.find(h => h.schemes.includes(ctx.scheme));
   if (handler) {
-    return {
-      ask: {
-        message: "Handle app link…",
-        options: [{ copy: true }, handler.target],
-        default: 0,
-      },
-    };
+    return { ask: { options: [{ copy: true }, handler.target], default: 0 } };
   }
   return "personal";
 }
 ```
 
-Replace the example scheme names and app bundle ID with your own. Add another
-entry for each app; aliases can share an entry. A `target` can also be a browser
-key or `{ browser: "key" }`. `schemeHandlers` is just a JavaScript helper in this
-example: brouter reads `schemes` and calls `route()` as usual.
+Scheme names are case-insensitive and have no `:` or `//`. `ctx.scheme` is
+lowercase.
 
-`{ copy: true }` works directly as a route result or alongside browser keys,
-`{ browser: "key" }` references, and inline app targets in `ask.options`.
-`default` can be a zero-based option index (including Copy URL) or a browser key.
-Copying preserves the original URL, including its escaping, query, and fragment.
-To send a custom URL directly to a browser, return its normal browser key instead.
-The destination must support the scheme; brouter does not convert it to HTTPS.
-
-After adding or changing `schemes`, rebuild/install and explicitly register them:
+After changing `schemes`, reinstall and register them:
 
 ```sh
 make install
 /Applications/brouter.app/Contents/MacOS/brouter register-schemes
 ```
 
-Use `~/Applications/brouter.app/Contents/MacOS/brouter` if installed there.
-The bundle build incorporates the configured schemes before code signing.
-`register-schemes` changes only the listed handlers and verifies the result;
-macOS may ask for consent. Routing-rule edits still reload without a rebuild.
-Removing a scheme from config does not restore its previous macOS handler:
-restore that handler before removing it. Explicit app targets use `open -a`/`-b`
-rather than opening via the system default, avoiding a redirect back to brouter.
+Approve the macOS prompt. If a scheme doesn't switch, quit the app that owns
+it and try again. brouter can only handle schemes listed in `schemes`; macOS
+has no catch-all handler.
 
-Normal agent routing and launch-failure logs omit URLs. Config-authored logs and
-`brouter route` dry-run output can still include them, so use synthetic URLs for
-testing authentication callbacks. Clipboard managers may retain copied URLs.
+Removing a scheme from `schemes` does not give it back to its original app. Set
+the handler back first.
+
+## Picker
+
+- **1–9**: choose an option
+- **Return**: choose the default
+- **Esc** or click outside: cancel
+
+Preview it with `swift run brouter ask-demo`.
 
 ## Menu bar
 
-The agent shows a menu-bar icon (the branch glyph). **Click** for the menu;
-**⌥-click** to also show the version and config status at the top.
+- **Smart Config**: open a coding agent to edit the config, or copy a prompt for one
+- **Manual Config**: open, reveal, copy the path of, or reload the config
+- **Detected Browsers**: click a profile to copy its config key
+- **Quit brouter**: stop the agent until the next link or login
 
-- **Smart Config ▸** — *ask a coding agent to edit your config.* Lists whichever
-  agents are available (hidden entirely if none are):
-  - **Desktop apps** (no terminal): **Claude Code (app)** and **Codex (app)** —
-    detected by `.app` presence and opened via their URL schemes
-    (`claude://code/new`, `codex://threads/new`) with the config folder and a
-    prompt prefilled.
-  - **CLIs** (in a terminal): **Devin CLI**, **Claude Code (CLI)**, **Codex
-    (CLI)** — detected on your `PATH`. Picking one opens it in a terminal `cd`'d
-    to the config dir; if you have more than one terminal installed, brouter
-    shows the same native picker to choose which. Devin runs with
-    `--model swe-1.6-fast`.
-
-  The prompt is also copied to your clipboard on launch, so if a deep-link
-  prefill ever misses you can just paste it. **Copy Prompt** (always present,
-  even if no agents are detected) puts the prompt on your clipboard so you can
-  paste it into any tool you like.
-- **Manual Config ▸** — Open in Editor · Reveal in Finder · Copy Config Path · Reload Config
-- **Detected Browsers ▸** — every installed browser + profile; click one to copy
-  its config key
-- **Quit brouter** — stops the daemon (a clean quit won't be relaunched by
-  launchd; clicking a link will still cold-launch it)
-
-## Ask dialog
-
-- Number keys **1–9** select an option
-- **↩** picks the default (the highlighted one)
-- **esc** (or clicking away) cancels
-
-Preview it without being the default browser:
-
-```sh
-swift run brouter ask-demo
-```
+Option-click the icon to show the version and config status.
 
 ## CLI
 
-The same binary is the agent and a small CLI:
-
 ```sh
-brouter route <url>      # show where a URL would go (dry run, no launch)
-brouter open <url>       # route and open a URL now
-brouter validate         # load the config and report errors
-brouter detect           # list autodetected browsers + profiles
-brouter agents           # list detected coding agents + terminals
-brouter init [--force]   # write a starter config (with detected browsers)
-brouter edit             # open the config in your editor
-brouter browsers         # list browsers defined in the config
-brouter set-default      # set brouter as the default http/https handler
-brouter register-schemes
-brouter config-path      # print the resolved config path
-brouter help
+brouter route <url>          # show where a URL would go
+brouter open <url>           # route and open a URL
+brouter validate             # check the config
+brouter detect               # list installed browsers and profiles
+brouter browsers             # list browsers in the config
+brouter agents               # list coding agents and terminals
+brouter init [--force]       # write a starter config
+brouter edit                 # open the config
+brouter set-default [app]    # handle http and https
+brouter register-schemes [app]  # handle the schemes in the config
+brouter config-path          # print the config path
 ```
 
-Run the automated routing, clipboard, and bundle-declaration tests with `swift test`.
-Tests use synthetic URLs and a private pasteboard, without changing macOS handlers.
-
-During development:
+## Development
 
 ```sh
-make build               # debug build
-make validate            # validate config
+swift test
+make build
+make run                          # run the agent in the foreground
 make route URL=https://github.com/x/y
-make run                 # run the agent in the foreground
 ```
 
-## How it works
+## Troubleshooting
 
-- `brouter.app` declares `http`/`https` in `CFBundleURLTypes`, so it can be the
-  default browser. macOS delivers clicked links via the standard `GetURL` Apple
-  Event (`kInternetEventClass`/`kAEGetURL`).
-- It's an `LSUIElement` agent (no Dock icon, just a menu-bar item). A LaunchAgent
-  (`RunAtLoad` + `KeepAlive`/`SuccessfulExit=false`) keeps it running so config is
-  preloaded and the Ask dialog is instant — but a clean **Quit** stays stopped.
-- `config.js` is evaluated with JavaScriptCore. `route()` returns a target,
-  which is launched via `/usr/bin/open` (Chromium profiles use
-  `--profile-directory=...`).
-
-## Logs & troubleshooting
-
-- Log file: `~/Library/Logs/brouter.log`
-- Restart the agent: `launchctl kickstart -k gui/$(id -u)/com.nikhiljha.brouter`
-- If brouter doesn't appear in the default-browser list, re-register it:
+- Logs: `~/Library/Logs/brouter.log`
+- Restart: `launchctl kickstart -k gui/$(id -u)/com.nikhiljha.brouter`
+- Missing from the default-browser list:
   ```sh
   /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f /Applications/brouter.app
   ```
-- After changing the bundle, run `make install` again to re-copy and reload.
-- Config errors are printed to the log and to `brouter validate`; on a bad
-  config, links fall back to the first browser / Safari.
-
-## Repo layout
-
-```
-Package.swift
-Sources/brouter/         Swift sources
-  main.swift             entry point (CLI vs agent vs ask-demo)
-  AppDelegate.swift      GetURL Apple Event handler + agent lifecycle
-  Router.swift           JavaScriptCore config loading + route()
-  BrowserLauncher.swift  launches apps / Chrome profiles via `open`
-  BrowserDetector.swift  autodetect installed browsers + profiles
-  ConfigGenerator.swift  build a starter config from detected browsers
-  AgentLauncher.swift    detect coding agents/terminals + launch agent sessions
-  StatusBar.swift        menu-bar (NSStatusItem) controller
-  AskDialog.swift        native SwiftUI Ask picker (in an NSPanel)
-  CLI.swift              route/open/validate/detect/init/set-default/...
-  Config.swift           config path resolution + auto-create
-  Models.swift           target / decision types
-  Demo.swift             `ask-demo` preview
-Resources/Info.plist     app bundle Info.plist (URL types, LSUIElement)
-LaunchAgents/…plist       LaunchAgent template
-scripts/                 bundle.sh, install.sh, uninstall.sh
-config.example.js        documented config template
-Makefile
-```
-
-Your live config is generated at `~/Library/Application Support/brouter/config.js`.
+- If the config fails to load, links open in the first browser or Safari.
+  `brouter validate` shows the error.

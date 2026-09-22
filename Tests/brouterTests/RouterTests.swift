@@ -105,6 +105,7 @@ final class RouterTests: XCTestCase {
         for (app, bundleId) in [("Safari", "com.apple.Safari"), ("Terminal", "com.apple.Terminal"), ("com.apple.Safari", "com.apple.Safari")] {
             let url = BrowserLauncher.appURL(for: app)
             XCTAssertEqual(url.flatMap { Bundle(url: $0)?.bundleIdentifier }, bundleId, app)
+            XCTAssertEqual(url, url?.resolvingSymlinksInPath(), "\(app) should resolve symlinks")
         }
         XCTAssertNotNil(BrowserLauncher.appURL(for: "/System/Applications/Utilities/Terminal.app"))
         XCTAssertNil(BrowserLauncher.appURL(for: "No Such App \(UUID().uuidString)"))

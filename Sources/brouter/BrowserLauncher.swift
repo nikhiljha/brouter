@@ -78,15 +78,17 @@ enum BrowserLauncher {
     static func appURL(for app: String) -> URL? {
         let fm = FileManager.default
         if app.hasSuffix(".app") || app.contains("/") {
-            return fm.fileExists(atPath: app) ? URL(fileURLWithPath: app) : nil
+            return fm.fileExists(atPath: app) ? URL(fileURLWithPath: app).resolvingSymlinksInPath() : nil
         }
         if app.contains("."), !app.contains(" ") {
             return NSWorkspace.shared.urlForApplication(withBundleIdentifier: app)
         }
+        // Resolve symlinks (e.g. /Applications/Safari.app) so icons don't get an alias badge.
         let dirs = ["/Applications", "~/Applications", "/System/Applications", "/System/Applications/Utilities"]
         return dirs.lazy
             .map { URL(fileURLWithPath: NSString(string: $0).expandingTildeInPath).appendingPathComponent("\(app).app") }
-            .first { fm.fileExists(atPath: $0.path) }
+            .first { fm.fileExists(atPath: $0.path) }?
+            .resolvingSymlinksInPath()
     }
 
     /// Icon for a target's app, or a generic application icon.

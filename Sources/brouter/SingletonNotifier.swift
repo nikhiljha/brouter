@@ -25,7 +25,8 @@ enum SingletonNotifier {
     /// Attempt the singleton hand-off. Returns true only if the running browser
     /// acknowledged (ACK) the request, in which case the URL is now open.
     static func tryNotify(_ target: BrowserTarget, url: String) -> Bool {
-        guard let (bundleId, appURL) = resolve(app: target.app),
+        guard let appURL = BrowserLauncher.appURL(for: target.app),
+              let bundleId = Bundle(url: appURL)?.bundleIdentifier,
               let support = chromeFamily[bundleId] else { return false }
 
         let userDataDir = FileManager.default
@@ -46,27 +47,6 @@ enum SingletonNotifier {
         NSRunningApplication.runningApplications(withBundleIdentifier: bundleId)
             .first?.activate(options: [.activateIgnoringOtherApps])
         return true
-    }
-
-    // MARK: - App resolution
-
-    /// Resolve a config `app` (name, bundle id, or path) to (bundleId, appURL).
-    private static func resolve(app: String) -> (String, URL)? {
-        let ws = NSWorkspace.shared
-        if app.hasSuffix(".app") || app.contains("/") {
-            let url = URL(fileURLWithPath: app)
-            guard let bid = Bundle(url: url)?.bundleIdentifier else { return nil }
-            return (bid, url)
-        }
-        if app.contains("."), !app.contains(" ") {
-            guard let url = ws.urlForApplication(withBundleIdentifier: app) else { return nil }
-            return (app, url)
-        }
-        if let path = ws.fullPath(forApplication: app),
-           let bid = Bundle(url: URL(fileURLWithPath: path))?.bundleIdentifier {
-            return (bid, URL(fileURLWithPath: path))
-        }
-        return nil
     }
 
     // MARK: - Socket handshake

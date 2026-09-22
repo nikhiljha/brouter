@@ -27,7 +27,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusBar = StatusBarController(router: router)
     }
 
-    // Modern AppKit also delivers URLs here in some cases.
+    // Files opened with brouter (e.g. an .html file via Open With) arrive here.
     func application(_ application: NSApplication, open urls: [URL]) {
         for url in urls { handle(urlString: url.absoluteString, source: nil) }
     }

@@ -199,7 +199,7 @@ enum CLI {
             appURL = URL(fileURLWithPath: installed)
         }
 
-        guard let bundle = Bundle(url: appURL), bundle.bundleIdentifier == "com.nikhiljha.brouter" else {
+        guard let bundle = Bundle(url: appURL), bundle.bundleIdentifier == Config.bundleIdentifier else {
             errln("Expected an installed brouter.app bundle.")
             return 1
         }
@@ -267,23 +267,20 @@ enum CLI {
     }
 
     private static func printDecision(_ decision: RouteDecision, url: String) {
+        print("route(\(url))")
         switch decision {
         case .open(let t):
-            print("route(\(url))")
             print("  -> open in \(describe(t))")
             print("  $ open \(BrowserLauncher.openArguments(for: t, url: url).joined(separator: " "))")
         case .ask(let req):
-            print("route(\(url))")
             print("  -> ASK\(req.message.map { " (\($0))" } ?? "")")
             for (i, o) in req.options.enumerated() {
                 let star = (req.defaultIndex ?? 0) == i ? "*" : " "
                 print("   \(star)\(i + 1). \(describe(o))")
             }
         case .copy:
-            print("route(\(url))")
             print("  -> copy original URL to clipboard")
         case .none:
-            print("route(\(url))")
             print("  -> no route (agent falls back to first/Safari)")
         }
     }

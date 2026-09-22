@@ -32,7 +32,7 @@ enum URLSchemes {
         let data = try Data(contentsOf: plistURL)
         guard appURL.pathExtension == "app",
               var plist = try PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],
-              plist["CFBundleIdentifier"] as? String == "com.nikhiljha.brouter" else {
+              plist["CFBundleIdentifier"] as? String == Config.bundleIdentifier else {
             throw ConfigurationError.invalidBundle
         }
         var types = plist["CFBundleURLTypes"] as? [[String: Any]] ?? []

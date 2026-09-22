@@ -26,10 +26,7 @@ struct BrowserTarget: Equatable {
     /// Human-friendly name for UI.
     var displayName: String {
         if let label, !label.isEmpty { return label }
-        if let key, !key.isEmpty {
-            if let profile, !profile.isEmpty { return "\(key)" }
-            return key
-        }
+        if let key, !key.isEmpty { return key }
         if let profile, !profile.isEmpty { return "\(app) — \(profile)" }
         return app
     }

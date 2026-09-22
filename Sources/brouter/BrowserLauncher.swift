@@ -72,23 +72,21 @@ enum BrowserLauncher {
         }
     }
 
-    // MARK: - App resolution (for icons / labels)
+    // MARK: - App resolution
 
-    /// Resolve a target's app to a file URL on disk, if possible.
+    /// Resolve a target's app (path, bundle id, or name) to a file URL on disk.
     static func appURL(for app: String) -> URL? {
-        let ws = NSWorkspace.shared
+        let fm = FileManager.default
         if app.hasSuffix(".app") || app.contains("/") {
-            let url = URL(fileURLWithPath: app)
-            return FileManager.default.fileExists(atPath: url.path) ? url : nil
+            return fm.fileExists(atPath: app) ? URL(fileURLWithPath: app) : nil
         }
-        if app.contains("."), !app.contains(" "), let url = ws.urlForApplication(withBundleIdentifier: app) {
-            return url
+        if app.contains("."), !app.contains(" ") {
+            return NSWorkspace.shared.urlForApplication(withBundleIdentifier: app)
         }
-        // Try by display name.
-        if let path = ws.fullPath(forApplication: app) {
-            return URL(fileURLWithPath: path)
-        }
-        return nil
+        let dirs = ["/Applications", "~/Applications", "/System/Applications", "/System/Applications/Utilities"]
+        return dirs.lazy
+            .map { URL(fileURLWithPath: NSString(string: $0).expandingTildeInPath).appendingPathComponent("\(app).app") }
+            .first { fm.fileExists(atPath: $0.path) }
     }
 
     /// Icon for a target's app, or a generic application icon.

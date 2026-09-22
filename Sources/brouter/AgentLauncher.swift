@@ -12,7 +12,6 @@ struct ConfigAgent {
         case appScheme(AppScheme)
     }
 
-    let id: String
     let name: String
     let runner: Runner
     /// App bundle path, used for the menu icon (app agents only).
@@ -49,10 +48,10 @@ enum AppScheme {
 }
 
 enum AgentCatalog {
-    private static let cliSpecs: [(id: String, name: String, tool: String, preArgs: [String])] = [
-        ("devin",  "Devin CLI",       "devin",  ["--model", "swe-1.6-fast", "--"]),
-        ("claude", "Claude Code (CLI)", "claude", []),
-        ("codex",  "Codex (CLI)",      "codex",  []),
+    private static let cliSpecs: [(name: String, tool: String, preArgs: [String])] = [
+        ("Devin CLI",         "devin",  ["--model", "swe-1.6-fast", "--"]),
+        ("Claude Code (CLI)", "claude", []),
+        ("Codex (CLI)",       "codex",  []),
     ]
 
     static func prompt(for configURL: URL) -> String {
@@ -67,14 +66,12 @@ enum AgentCatalog {
 
         for (scheme, name) in [(AppScheme.claudeCode, "Claude Code (app)"), (AppScheme.codex, "Codex (app)")] {
             if let url = ws.urlForApplication(withBundleIdentifier: scheme.bundleId) {
-                out.append(ConfigAgent(id: "\(scheme.bundleId).app", name: name,
-                                       runner: .appScheme(scheme), iconPath: url.path))
+                out.append(ConfigAgent(name: name, runner: .appScheme(scheme), iconPath: url.path))
             }
         }
         for spec in cliSpecs {
             if let path = Shell.toolPath(spec.tool) {
-                out.append(ConfigAgent(id: spec.id, name: spec.name,
-                                       runner: .cli(command: path, preArgs: spec.preArgs), iconPath: nil))
+                out.append(ConfigAgent(name: spec.name, runner: .cli(command: path, preArgs: spec.preArgs), iconPath: nil))
             }
         }
         return out
@@ -86,7 +83,6 @@ enum AgentCatalog {
 struct TerminalApp {
     enum Kind { case kitty, ghostty, wezterm, alacritty, iterm, terminal }
     let name: String
-    let bundleId: String
     let appPath: String
     let kind: Kind
 
@@ -107,7 +103,7 @@ enum TerminalCatalog {
         let ws = NSWorkspace.shared
         return known.compactMap { t in
             guard let url = ws.urlForApplication(withBundleIdentifier: t.bundleId) else { return nil }
-            return TerminalApp(name: t.name, bundleId: t.bundleId, appPath: url.path, kind: t.kind)
+            return TerminalApp(name: t.name, appPath: url.path, kind: t.kind)
         }
     }
 }

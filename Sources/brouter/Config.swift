@@ -1,6 +1,7 @@
 import Foundation
 
 enum Config {
+    static let bundleIdentifier = "com.nikhiljha.brouter"
     /// Canonical location (standard macOS app settings dir).
     static let canonical = NSString(string: "~/Library/Application Support/brouter/config.js").expandingTildeInPath
     /// Alternative for the XDG-inclined.

@@ -14,7 +14,6 @@ struct DetectedTarget {
 
 /// A browser installed on the system and its profiles.
 struct DetectedBrowser {
-    var appName: String
     var shortName: String
     var bundleId: String
     var appPath: String
@@ -81,8 +80,8 @@ enum BrowserDetector {
                                           app: appName, profileDir: nil, args: [])]
             }
 
-            browsers.append(DetectedBrowser(appName: appName, shortName: k.shortName,
-                                            bundleId: k.bundleId, appPath: appURL.path, targets: targets))
+            browsers.append(DetectedBrowser(shortName: k.shortName, bundleId: k.bundleId,
+                                            appPath: appURL.path, targets: targets))
         }
         assignKeys(&browsers)
         return browsers
